@@ -48,10 +48,10 @@ project/
 │   └── state.js
 └── assets/
 │   ├── fonts/
-│   └── VCROSDMono.woff2
-└── models/
-│   ├── scene.glb
-│   └── scene_zoned.glb
+│       └── VCROSDMono.woff2
+│   ├── models/
+│       ├── scene.glb
+│       └── scene_zoned.glb
 
 
 ```

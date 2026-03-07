@@ -31,12 +31,12 @@ Green wireframe city. CRT scanlines. Phosphor glow. A slow cinematic autopilot t
 
 ```
 project/
-├── index.html          ← single file application
+├── index.html
+├── README.md
 ├── fonts/
 │   └── VCROSDMono.woff2
 └── NYC/
-    ├── scene.gltf      ← 3D model (JSON descriptor)
-    └── scene.bin       ← binary geometry buffer (~33 MB)
+    └── scene.glb       ← 3D model, geometry + textures in one file
 ```
 
 ---
@@ -49,9 +49,13 @@ The application expects the **"New York City. Manhattan"** model by **truekit**,
 
 > https://sketchfab.com/3d-models/new-york-city-manhattan-372bc495b3a941308f4a3198bc45e17b
 
-Download the GLTF/GLB version. Rename or place the files so that:
-- `scene.gltf` is inside the `NYC/` folder
-- `scene.bin` is inside the `NYC/` folder
+Download the **GLB** version. Place the file as:
+
+```
+NYC/scene.glb
+```
+
+A single `.glb` bundles geometry and textures in one binary file — no separate `.bin` needed. At ~33 MB it fits under GitHub's 100 MB per-file limit without Git LFS.
 
 ### Local Server
 

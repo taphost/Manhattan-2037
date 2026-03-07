@@ -274,8 +274,8 @@
     });
   }
 
-  const mCore = makeLineMat(IS_MOBILE ? 3 : 4,  IS_MOBILE ? 0.88 : 0.92);
-  const mHalo = makeLineMat(IS_MOBILE ? 5 : 10, IS_MOBILE ? 0.08 : 0.18);
+  const mCore = makeLineMat(3, 0.88);
+  const mHalo = makeLineMat(5, 0.08);
 
 
   /* ─────────────────────────────────────────────────────────────
@@ -491,7 +491,7 @@
         const size   = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
 
-        scene.fog = new THREE.FogExp2(COLOR_BG, IS_MOBILE ? 1.8 / maxDim : 1.2 / maxDim);
+        scene.fog = new THREE.FogExp2(COLOR_BG, 1.8 / maxDim);
 
         controls.target.set(center.x, center.y * 0.3, center.z);
         camera.position.set(
@@ -621,8 +621,8 @@
     cityMaxDim = maxDim;
     buildKeyframes();
 
-    lodNear = maxDim * (IS_MOBILE ? 0.25 : 0.35);
-    lodFar  = maxDim * (IS_MOBILE ? 0.50 : 0.70);
+    lodNear = maxDim * 0.25;
+    lodFar  = maxDim * 0.50;
 
     tourTime = 0;
   }

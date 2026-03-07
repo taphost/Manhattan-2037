@@ -41,7 +41,7 @@ body {
     linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
   background-size: 100% 4px, 3px 100%;
   pointer-events: none;
-  opacity: 0.2;
+  opacity: 0.8;
 }
 
 /* Subtle phosphor blur on the WebGL canvas */

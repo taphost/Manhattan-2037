@@ -1,0 +1,37 @@
+export function createAppState() {
+  return {
+    autoPilot: true,
+    sceneReady: false,
+    lockState: 'idle',
+
+    lodObjects: [],
+    zoneObjects: [],
+    grid: null,
+    zoneCells: [],
+    gridMinX: 0,
+    gridMinZ: 0,
+    gridCellW: 1,
+    gridCellD: 1,
+    lodNear: 0,
+    lodFar: 0,
+
+    lockedLod: null,
+    lockedCenters: new Set(),
+    lockSilhouetteGroup: null,
+    lockTimer: null,
+    blinkPhase: 0,
+    lockZoneCenter: null,
+    lockOrbitStartAngle: 0,
+    lockOrbitRadiusStart: 0,
+    lockOrbitRadiusEnd: 0,
+    lockOrbitHeight: 0,
+    lockStartedAtMs: 0,
+    panelEverShown: false,
+
+    cityMaxDim: 10,
+    keyframes: [],
+    tourTime: 0,
+    lastFrame: 0,
+    pointerDownPosition: null,
+  };
+}

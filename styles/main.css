@@ -185,12 +185,11 @@ canvas {
   #target-panel {
     top: 8px;
     right: 6px;
-    text-align: right;
   }
 
-  /* Right-align the content in the target panel to keep it far from center */
-  #target-panel .prow {
-    justify-content: flex-end;
+  /* Ensure rows stay compact but left-aligned */
+  .prow {
+    justify-content: flex-start;
   }
 
   .plbl {

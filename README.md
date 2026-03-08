@@ -7,7 +7,7 @@ A real-time 3D night-vision rendering of Manhattan, inspired by the aesthetic of
 
 ## Preview
 
-Green wireframe city. CRT scanlines. Phosphor glow. A slow cinematic autopilot tour around the island. The kind of screen you'd see in a surveillance room in a dystopian 2037.
+Green wireframe city. Curved CRT glass, tactical grid, animated noise, scanlines, phosphor glow. A slow cinematic autopilot tour around the island. The kind of screen you'd see in a surveillance room in a dystopian 2037.
 
 ---
 
@@ -23,7 +23,7 @@ Green wireframe city. CRT scanlines. Phosphor glow. A slow cinematic autopilot t
 - **Frustum culling** — `LineSegments2` objects carry explicit bounding spheres and are culled when outside the camera frustum
 - **Mobile optimisations** — narrower lines, reduced halo opacity, denser fog, `pixelRatio` locked to 1, `powerPreference: high-performance`
 - **Fixed 25 fps cap** — render loop throttled via `performance.now()` delta check; smooth on low-end devices
-- **CRT scanline overlay** — CSS `linear-gradient`, zero GPU cost
+- **CRT overlay stack** — curved-glass mask, tactical grid, animated tri-tone noise, scanlines and RGB shift, implemented in CSS over the WebGL canvas (no shader pass)
 - **Tap to toggle** — tap/click anywhere on the scene to switch between autopilot and manual OrbitControls; pointer drag is distinguished from tap via 8px threshold
 - **Dual-model architecture** — original `scene.glb` for visual fidelity, `scene_zoned.glb` for zone logic and lock targeting
 - **Target Acquisition & Tracking** — autonomous HUD reticle using 3D-to-2D projection; frames buildings precisely via volumetric bounding-box corners.
@@ -132,6 +132,9 @@ Each mesh generates multiple `EdgesGeometry` instances at different crease angle
 
 ### Lock silhouette & Tracking system
 Lock highlighting does not render zoned geometry directly. It clips cloned linework from the visual model using zone bounding planes. A separate HTML/CSS reticle tracks the building in screen-space, using volumetric projection to eliminate parallax drift. Jitter and stepped animations are used to maintain a "nervous" digital aesthetic.
+
+### CRT overlay stack
+The CRT look is layered in `#crt` using CSS-only overlays: rounded glass mask, vignette, tactical grid, RGB/scanline pass, and animated color noise. Main tuning knobs live in `styles/main.css` under `--crt-*` and `--screen-global-blur`.
 
 ### Responsive HUD
 The HUD uses media queries specifically tuned for mobile portrait modes, reducing font sizes and forcing a central gap through percentage-based widths to ensure left/right panels never overlap.

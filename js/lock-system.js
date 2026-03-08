@@ -87,6 +87,16 @@ export function createLockController({
   let lockLineCoreMaterial = null;
   let lockLineHaloMaterial = null;
 
+  function hideReticle(reticleEl) {
+    if (!reticleEl) return;
+    reticleEl.style.display = 'none';
+    reticleEl.style.opacity = '0';
+    reticleEl.style.visibility = 'hidden';
+    // Keep it far from viewport in case a stale frame flips display back.
+    reticleEl.style.left = '-200vw';
+    reticleEl.style.top = '-200vh';
+  }
+
   function startLock() {
     if (lodObjects.length === 0) return;
 
@@ -198,7 +208,7 @@ export function createLockController({
     const reticleEl = document.getElementById('reticle');
     if (reticleEl) {
       reticleEl.style.setProperty('--reticle-color', `#${riskColor.toString(16).padStart(6, '0')}`);
-      reticleEl.style.display = 'block';
+      hideReticle(reticleEl);
       document.body.classList.add('reticle-acquiring');
     }
 
@@ -224,7 +234,7 @@ export function createLockController({
     }
     state.reticleEnabled = false;
     const reticleEl = document.getElementById('reticle');
-    if (reticleEl) reticleEl.style.display = 'none';
+    hideReticle(reticleEl);
     document.body.classList.remove('reticle-acquiring');
 
     state.lockedLod = null;
@@ -271,11 +281,15 @@ export function createLockController({
 
     // Update screen-space reticle based on the building's 3D volume
     const reticleEl = document.getElementById('reticle');
-    if (reticleEl && state.reticleEnabled && state.lockedLod) {
+    if (reticleEl && state.reticleEnabled && state.lockedLod && state.lockZoneCenter) {
       const mesh = state.lockedLod.mesh;
       if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
       
       const box = mesh.geometry.boundingBox;
+      
+      // Force world matrix update for both camera and mesh to ensure sync
+      camera.updateMatrixWorld(true);
+      mesh.updateWorldMatrix(true, false);
       const matrix = mesh.matrixWorld;
       
       // Strict frustum check using the building's center
@@ -302,14 +316,21 @@ export function createLockController({
 
         for (const v of corners) {
           v.applyMatrix4(matrix).project(camera);
+
+          // Hard lock: any invalid/depth-clipped corner cancels reticle for this frame.
+          if (!Number.isFinite(v.x) || !Number.isFinite(v.y) || !Number.isFinite(v.z) || v.z > 1 || v.z < -1) {
+            hideReticle(reticleEl);
+            return;
+          }
+
           minX = Math.min(minX, v.x);
           maxX = Math.max(maxX, v.x);
           minY = Math.min(minY, v.y);
           maxY = Math.max(maxY, v.y);
         }
 
-        // Safety: ensure the projected box is valid and on-screen
-        if (maxX > -1 && minX < 1 && maxY > -1 && minY < 1) {
+        // Safety: ensure the projected box is valid, on-screen, and finite
+        if (maxX > -1 && minX < 1 && maxY > -1 && minY < 1 && Number.isFinite(minX)) {
           const screenXMin = (minX * 0.5 + 0.5) * window.innerWidth;
           const screenXMax = (maxX * 0.5 + 0.5) * window.innerWidth;
           const screenYMin = (-(maxY * 0.5) + 0.5) * window.innerHeight;
@@ -319,21 +340,39 @@ export function createLockController({
           const centerY = (screenYMin + screenYMax) / 2;
           const width = screenXMax - screenXMin;
           const height = screenYMax - screenYMin;
+
+          if (
+            !Number.isFinite(centerX)
+            || !Number.isFinite(centerY)
+            || !Number.isFinite(width)
+            || !Number.isFinite(height)
+            || width <= 0
+            || height <= 0
+          ) {
+            hideReticle(reticleEl);
+            return;
+          }
           
-          // Make it square based on the largest dimension to frame the building
-          const boxSize = Math.max(width, height) + 30; // 30px padding
+          // Sanity check for massive sizes (could happen during extreme camera proximity)
+          const maxBox = Math.min(window.innerWidth, window.innerHeight) * 0.95;
+          const boxSize = Math.max(40, Math.min(maxBox, Math.max(width, height) + 30));
 
           reticleEl.style.left = `${centerX}px`;
           reticleEl.style.top = `${centerY}px`;
           reticleEl.style.width = `${boxSize}px`;
           reticleEl.style.height = `${boxSize}px`;
+          reticleEl.style.opacity = '1';
+          reticleEl.style.visibility = 'visible';
+          // Flip to visible only after a valid position/size has been written.
           reticleEl.style.display = 'block';
         } else {
-          reticleEl.style.display = 'none';
+          hideReticle(reticleEl);
         }
       } else {
-        reticleEl.style.display = 'none';
+        hideReticle(reticleEl);
       }
+    } else {
+      hideReticle(reticleEl);
     }
   }
 

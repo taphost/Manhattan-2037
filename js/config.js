@@ -7,8 +7,8 @@ export const APP_CONFIG = Object.freeze({
     green: 0x4cff7a,
     background: 0x010302,
     risk: Object.freeze({
-      LOW: 0x4cff7a,
-      MEDIUM: 0xffdd00,
+      LOW: 0xffffff,
+      MEDIUM: 0xff8800,
       HIGH: 0xff3333,
     }),
   }),

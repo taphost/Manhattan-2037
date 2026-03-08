@@ -113,13 +113,13 @@ canvas {
 }
 
 .risk-low {
-  color: #4cff7a;
-  text-shadow: 0 0 8px #4cff7a;
+  color: #ffffff;
+  text-shadow: 0 0 8px #ffffff;
 }
 
 .risk-medium {
-  color: #ffdd00;
-  text-shadow: 0 0 8px #ffdd0099;
+  color: #ff8800;
+  text-shadow: 0 0 8px #ff880099;
 }
 
 .risk-high {
@@ -211,7 +211,7 @@ canvas {
   width: 60px;
   height: 60px;
   transform: translate(-50%, -50%);
-  border: 1px solid var(--reticle-color, #4cff7a);
+  border: 2px solid var(--reticle-color, #4cff7a);
   animation: reticleJitter 0.15s steps(2) infinite;
   box-shadow: 0 0 8px var(--reticle-color, #4cff7a33);
 }
@@ -227,7 +227,7 @@ canvas {
   content: '';
   position: absolute;
   inset: -2px;
-  border: 1px solid var(--reticle-color, #4cff7a);
+  border: 2px solid var(--reticle-color, #4cff7a);
   opacity: 0;
 }
 
@@ -257,18 +257,9 @@ canvas {
   }
 }
 
-/* Corner markers for the reticle */
+/* Corner markers for the reticle - hidden as requested */
 .ret-corner {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  border-style: solid;
-  border-color: var(--reticle-color, #4cff7a);
+  display: none;
 }
-
-.ret-tl { top: -2px; left: -2px; border-width: 2px 0 0 2px; }
-.ret-tr { top: -2px; right: -2px; border-width: 2px 2px 0 0; }
-.ret-bl { bottom: -2px; left: -2px; border-width: 0 0 2px 2px; }
-.ret-br { bottom: -2px; right: -2px; border-width: 0 2px 2px 0; }
 
 

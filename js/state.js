@@ -26,6 +26,8 @@ export function createAppState() {
     lockOrbitRadiusEnd: 0,
     lockOrbitHeight: 0,
     lockStartedAtMs: 0,
+    lockTargetRadius: 0,
+    reticleEnabled: false,
     panelEverShown: false,
 
     cityMaxDim: 10,

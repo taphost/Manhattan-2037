@@ -202,4 +202,73 @@ canvas {
   }
 }
 
+/* Target Tracker / Reticle */
+#reticle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 15;
+  display: none;
+  width: 60px;
+  height: 60px;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--reticle-color, #4cff7a);
+  animation: reticleJitter 0.15s steps(2) infinite;
+  box-shadow: 0 0 8px var(--reticle-color, #4cff7a33);
+}
+
+@keyframes reticleJitter {
+  0% { transform: translate(-51%, -49%) rotate(0.1deg); }
+  50% { transform: translate(-49%, -51%) rotate(-0.1deg); }
+  100% { transform: translate(-50.5%, -50.5%) rotate(0deg); }
+}
+
+#reticle::before,
+#reticle::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 1px solid var(--reticle-color, #4cff7a);
+  opacity: 0;
+}
+
+.reticle-acquiring #reticle::before {
+  animation: reticlePulse 0.4s steps(3) infinite; /* Stepped for nervous look */
+}
+
+.reticle-acquiring #reticle::after {
+  animation: reticlePulse 0.4s steps(3) infinite 0.2s;
+}
+
+@keyframes reticlePulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.8;
+  }
+  51% {
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+/* Corner markers for the reticle */
+.ret-corner {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-style: solid;
+  border-color: var(--reticle-color, #4cff7a);
+}
+
+.ret-tl { top: -2px; left: -2px; border-width: 2px 0 0 2px; }
+.ret-tr { top: -2px; right: -2px; border-width: 2px 2px 0 0; }
+.ret-bl { bottom: -2px; left: -2px; border-width: 0 0 2px 2px; }
+.ret-br { bottom: -2px; right: -2px; border-width: 0 2px 2px 0; }
+
 

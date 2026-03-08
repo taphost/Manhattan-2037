@@ -143,6 +143,8 @@ export function createLockController({
     state.lockOrbitHeight = toCamera.y * appConfig.lock.orbitHeightFactor;
     state.lockStartedAtMs = performance.now();
     state.blinkPhase = 0;
+    state.reticleEnabled = true;
+    state.lockTargetRadius = 0; // Will be set below
 
     state.lockedCenters = new Set(zone.entries.map((entry) => entry.center));
     state.lockedLod = zone.entries.reduce((best, current) => {
@@ -152,6 +154,9 @@ export function createLockController({
         * Math.max(current.mesh.scale.x, current.mesh.scale.y, current.mesh.scale.z);
       return currentRadius > bestRadius ? current : best;
     });
+
+    state.lockTargetRadius = (state.lockedLod.mesh.geometry.boundingSphere?.radius ?? 1)
+      * Math.max(state.lockedLod.mesh.scale.x, state.lockedLod.mesh.scale.y, state.lockedLod.mesh.scale.z);
 
     if (state.lockSilhouetteGroup) scene.remove(state.lockSilhouetteGroup);
     const zoneBox = new THREE.Box3();
@@ -190,6 +195,13 @@ export function createLockController({
     document.getElementById('t-uplink').textContent =
       uplinkOptions[Math.floor(Math.random() * uplinkOptions.length)];
 
+    const reticleEl = document.getElementById('reticle');
+    if (reticleEl) {
+      reticleEl.style.setProperty('--reticle-color', `#${riskColor.toString(16).padStart(6, '0')}`);
+      reticleEl.style.display = 'block';
+      document.body.classList.add('reticle-acquiring');
+    }
+
     if (!state.panelEverShown) {
       document.getElementById('target-panel').style.display = 'block';
       state.panelEverShown = true;
@@ -210,6 +222,11 @@ export function createLockController({
       scene.remove(state.lockSilhouetteGroup);
       state.lockSilhouetteGroup = null;
     }
+    state.reticleEnabled = false;
+    const reticleEl = document.getElementById('reticle');
+    if (reticleEl) reticleEl.style.display = 'none';
+    document.body.classList.remove('reticle-acquiring');
+
     state.lockedLod = null;
     state.lockedCenters = new Set();
     state.lockZoneCenter = null;
@@ -234,10 +251,89 @@ export function createLockController({
   }
 
   function tickLockVisibility(deltaTime) {
-    if (state.lockState !== 'locking') return;
+    if (state.lockState !== 'locking' || !state.lockedLod) return;
+
+    const elapsed = performance.now() - state.lockStartedAtMs;
+    const isAcquiring = elapsed < 2500; // First 2.5s is acquiring
+
+    if (isAcquiring) {
+      setStatusLine('ACQUIRING TARGET...', true);
+      document.body.classList.add('reticle-acquiring');
+    } else {
+      setStatusLine('TARGET LOCKED', false);
+      document.body.classList.remove('reticle-acquiring');
+    }
+
     state.blinkPhase += deltaTime * appConfig.lock.blinkRateHz;
     if (state.lockSilhouetteGroup) {
       state.lockSilhouetteGroup.visible = Math.sin(state.blinkPhase * Math.PI) > 0;
+    }
+
+    // Update screen-space reticle based on the building's 3D volume
+    const reticleEl = document.getElementById('reticle');
+    if (reticleEl && state.reticleEnabled && state.lockedLod) {
+      const mesh = state.lockedLod.mesh;
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      
+      const box = mesh.geometry.boundingBox;
+      const matrix = mesh.matrixWorld;
+      
+      // Strict frustum check using the building's center
+      const frustum = new THREE.Frustum();
+      const projScreenMatrix = new THREE.Matrix4();
+      projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+      frustum.setFromProjectionMatrix(projScreenMatrix);
+
+      if (frustum.containsPoint(state.lockZoneCenter)) {
+        // Project all 8 corners of the 3D bounding box to find the screen-space bounds
+        const corners = [
+          new THREE.Vector3(box.min.x, box.min.y, box.min.z),
+          new THREE.Vector3(box.min.x, box.min.y, box.max.z),
+          new THREE.Vector3(box.min.x, box.max.y, box.min.z),
+          new THREE.Vector3(box.min.x, box.max.y, box.max.z),
+          new THREE.Vector3(box.max.x, box.min.y, box.min.z),
+          new THREE.Vector3(box.max.x, box.min.y, box.max.z),
+          new THREE.Vector3(box.max.x, box.max.y, box.min.z),
+          new THREE.Vector3(box.max.x, box.max.y, box.max.z),
+        ];
+
+        let minX = Infinity, maxX = -Infinity;
+        let minY = Infinity, maxY = -Infinity;
+
+        for (const v of corners) {
+          v.applyMatrix4(matrix).project(camera);
+          minX = Math.min(minX, v.x);
+          maxX = Math.max(maxX, v.x);
+          minY = Math.min(minY, v.y);
+          maxY = Math.max(maxY, v.y);
+        }
+
+        // Safety: ensure the projected box is valid and on-screen
+        if (maxX > -1 && minX < 1 && maxY > -1 && minY < 1) {
+          const screenXMin = (minX * 0.5 + 0.5) * window.innerWidth;
+          const screenXMax = (maxX * 0.5 + 0.5) * window.innerWidth;
+          const screenYMin = (-(maxY * 0.5) + 0.5) * window.innerHeight;
+          const screenYMax = (-(minY * 0.5) + 0.5) * window.innerHeight;
+
+          const centerX = (screenXMin + screenXMax) / 2;
+          const centerY = (screenYMin + screenYMax) / 2;
+          const width = screenXMax - screenXMin;
+          const height = screenYMax - screenYMin;
+          
+          // Make it square based on the largest dimension to frame the building
+          const boxSize = Math.max(width, height) + 30; // 30px padding
+
+          reticleEl.style.left = `${centerX}px`;
+          reticleEl.style.top = `${centerY}px`;
+          reticleEl.style.width = `${boxSize}px`;
+          reticleEl.style.height = `${boxSize}px`;
+          reticleEl.style.display = 'block';
+        } else {
+          reticleEl.style.display = 'none';
+        }
+      } else {
+        reticleEl.style.display = 'none';
+      }
     }
   }
 

@@ -26,6 +26,8 @@ Green wireframe city. CRT scanlines. Phosphor glow. A slow cinematic autopilot t
 - **CRT scanline overlay** — CSS `linear-gradient`, zero GPU cost
 - **Tap to toggle** — tap/click anywhere on the scene to switch between autopilot and manual OrbitControls; pointer drag is distinguished from tap via 8px threshold
 - **Dual-model architecture** — original `scene.glb` for visual fidelity, `scene_zoned.glb` for zone logic and lock targeting
+- **Target Acquisition & Tracking** — autonomous HUD reticle using 3D-to-2D projection; frames buildings precisely via volumetric bounding-box corners.
+- **Responsive HUD** — dynamic scaling and positioning to prevent overlap on mobile/portrait screens; uses CSS `clamp` and `calc` for definitive panel separation.
 
 ---
 
@@ -128,8 +130,11 @@ Processing ~900k vertices of edge geometry synchronously would freeze the browse
 ### LOD system
 Each mesh generates multiple `EdgesGeometry` instances at different crease angle thresholds. Only one level is visible at any time based on camera distance. On mobile a third silhouette-only level (crease 70°) is added for far distances.
 
-### Lock silhouette system
-After loading, the app builds a 16×16 spatial lookup table from `scene_zoned.glb`. Each lock cycle picks a random grid cell and highlights all mesh geometry within it using a risk-colored blinking silhouette (`depthTest: false`, `AdditiveBlending`). The camera subtly lerps toward the zone center during the lock duration, then eases back into the panoramic tour.
+### Lock silhouette & Tracking system
+Lock highlighting does not render zoned geometry directly. It clips cloned linework from the visual model using zone bounding planes. A separate HTML/CSS reticle tracks the building in screen-space, using volumetric projection to eliminate parallax drift. Jitter and stepped animations are used to maintain a "nervous" digital aesthetic.
+
+### Responsive HUD
+The HUD uses media queries specifically tuned for mobile portrait modes, reducing font sizes and forcing a central gap through percentage-based widths to ensure left/right panels never overlap.
 
 ---
 

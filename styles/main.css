@@ -158,8 +158,8 @@ canvas {
 /* Mobile optimizations for small screens - prevents HUD overlap */
 @media (max-width: 768px) {
   .panel {
-    width: 44vw;
-    font-size: clamp(9px, 2.5vw, 12px);
+    width: calc(50% - 25px); /* Ensure a definitive gap in the center */
+    font-size: clamp(9px, 2.8vw, 12px);
     line-height: 1.4;
   }
 
@@ -174,12 +174,28 @@ canvas {
   }
 
   .prow {
-    gap: 6px;
+    gap: 4px; /* Tighter gap */
   }
 
   .plbl {
-    min-width: 60px;
-    letter-spacing: 0.5px;
+    min-width: 50px; /* Narrower labels */
+    letter-spacing: 0.2px;
+  }
+}
+
+/* Specific fix for extremely narrow screens or small phone portrait */
+@media (max-width: 400px) {
+  .panel {
+    font-size: 9px;
+    width: calc(50% - 15px);
+  }
+  .plbl {
+    min-width: 45px;
+  }
+  #hud, #target-panel {
+    left: 5px;
+    right: 5px;
+    top: 5px;
   }
 }
 

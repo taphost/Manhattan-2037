@@ -41,7 +41,7 @@ body {
     linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
   background-size: 100% 4px, 3px 100%;
   pointer-events: none;
-  opacity: 0.8;
+  opacity: 0.2;
 }
 
 /* Subtle phosphor blur on the WebGL canvas */
@@ -152,6 +152,34 @@ canvas {
   }
   97% {
     opacity: 1;
+  }
+}
+
+/* Mobile optimizations for small screens - prevents HUD overlap */
+@media (max-width: 768px) {
+  .panel {
+    width: 44vw;
+    font-size: clamp(9px, 2.5vw, 12px);
+    line-height: 1.4;
+  }
+
+  #hud {
+    top: 10px;
+    left: 10px;
+  }
+
+  #target-panel {
+    top: 10px;
+    right: 10px;
+  }
+
+  .prow {
+    gap: 6px;
+  }
+
+  .plbl {
+    min-width: 60px;
+    letter-spacing: 0.5px;
   }
 }
 

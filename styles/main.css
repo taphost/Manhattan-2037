@@ -155,40 +155,51 @@ canvas {
   }
 }
 
-/* Responsive HUD for small screens and Portrait mode */
+/* Responsive HUD for tablets and small laptops */
 @media (max-width: 768px) {
   .panel {
-    width: 42%; /* Create a larger central gap */
-    font-size: clamp(8px, 2.5vw, 11px);
+    width: 45%;
+    font-size: clamp(9px, 2.2vw, 12px);
     line-height: 1.3;
   }
-
-  #hud { top: 10px; left: 8px; }
-  #target-panel { top: 10px; right: 8px; }
-
-  .prow { gap: 4px; }
-  .plbl { 
-    min-width: 45px; 
-    letter-spacing: 0;
-    font-size: 0.9em; /* 10% smaller relative to value */
-  }
+  #hud { top: 15px; left: 10px; }
+  #target-panel { top: 15px; right: 10px; }
+  .prow { gap: 6px; }
+  .plbl { min-width: 50px; }
 }
 
-/* Specific aggressive fix for Portrait mode on smartphones */
-@media (orientation: portrait) {
+/* Hard fix for Phone Portrait - zero overlap guaranteed */
+@media (orientation: portrait) and (max-width: 500px) {
   .panel {
-    font-size: clamp(8px, 3.2vw, 10px); /* Roughly 20% smaller than standard */
-    width: 40%; /* 20% gap in the middle */
-  }
-  
-  .plbl {
-    min-width: 42px;
+    width: 44vw !important; /* Force fixed width per side */
+    font-size: 8.5px !important; /* Consistent small size */
+    line-height: 1.2;
+    overflow: hidden; /* Prevent text from spilling into center */
   }
 
-  #hud, #target-panel {
+  #hud {
     top: 8px;
-    left: 5px;
-    right: 5px;
+    left: 6px;
+  }
+
+  #target-panel {
+    top: 8px;
+    right: 6px;
+    text-align: right;
+  }
+
+  /* Right-align the content in the target panel to keep it far from center */
+  #target-panel .prow {
+    justify-content: flex-end;
+  }
+
+  .plbl {
+    min-width: 38px !important;
+    letter-spacing: -0.2px;
+  }
+
+  .pval {
+    text-shadow: 0 0 4px #4cff7a; /* Smaller glow to save space */
   }
 }
 

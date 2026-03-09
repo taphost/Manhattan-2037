@@ -7,6 +7,7 @@ import { createAppState } from './state.js';
 import {
   applyPanoramaToCamera,
   buildPanoramaKeyframes,
+  findNearestPanoramaTime,
   samplePanoramaPose,
 } from './panorama.js';
 import { applyMeshToLod, buildGridLookup, parseZoneName, updateLodVisibility } from './lod.js';
@@ -30,6 +31,10 @@ const LOCK_UPLINK_OPTIONS = [
 
 const state = createAppState();
 const cityCenter = new THREE.Vector3();
+let hudBootComplete = false;
+let worldBootComplete = false;
+let bootInitializeTimer = null;
+let hudSequenceComplete = false;
 
 const renderer = new THREE.WebGLRenderer({
   antialias: !IS_MOBILE,
@@ -113,6 +118,7 @@ function setStatusLine(text, blink) {
 
 function typewrite(valueElement, labelElement, label, value, charDelayMs, onDone) {
   labelElement.textContent = label;
+  valueElement.textContent = '';
   let index = 0;
   const cursor = document.createElement('span');
   cursor.className = 'cur';
@@ -131,12 +137,25 @@ function typewrite(valueElement, labelElement, label, value, charDelayMs, onDone
   tick();
 }
 
-function runHudSequence() {
+function maybeStartBootSequence() {
+  if (!hudBootComplete || !worldBootComplete || bootInitializeTimer) return;
+
+  setStatusLine('INITIALIZING...', true);
+  bootInitializeTimer = setTimeout(() => {
+    bootInitializeTimer = null;
+    lockController.startScanning({ initialDelayMs: 0 });
+  }, APP_CONFIG.timing.scanStartDelayMs);
+}
+
+function runHudSequence(onDone) {
   document.getElementById('hud').style.display = 'block';
   let lineIndex = 0;
 
   function nextLine() {
-    if (lineIndex >= HUD_LINES.length) return;
+    if (lineIndex >= HUD_LINES.length) {
+      onDone?.();
+      return;
+    }
     const { lbl, val } = HUD_LINES[lineIndex];
     typewrite(
       document.getElementById(`val${lineIndex}`),
@@ -206,6 +225,7 @@ const lockController = createLockController({
 });
 
 async function autoLoad() {
+  if (!hudSequenceComplete) return;
   try {
     const { visualGltf, zoneGltf } = await loadModelPair({
       visualModelPath: APP_CONFIG.modelPaths.visual,
@@ -247,7 +267,8 @@ async function autoLoad() {
         state.sceneReady = true;
         applyPanoramaToCamera({ camera, keyframes: state.keyframes, cityCenter, t: 0 });
         rebuildGrid();
-        setTimeout(() => lockController.startScanning(), APP_CONFIG.timing.scanStartDelayMs);
+        worldBootComplete = true;
+        maybeStartBootSequence();
         return;
       }
 
@@ -269,6 +290,84 @@ async function autoLoad() {
   }
 }
 
+const clock = new THREE.Timer();
+const smoothCamPos = new THREE.Vector3();
+const smoothLookAt = new THREE.Vector3();
+const cameraWorldPosition = new THREE.Vector3();
+const cameraForward = new THREE.Vector3();
+const autopilotTargetPos = new THREE.Vector3();
+const autopilotLookTarget = new THREE.Vector3();
+const handoverStartPos = new THREE.Vector3();
+const handoverStartLookTarget = new THREE.Vector3();
+const handoverTargetPos = new THREE.Vector3();
+const handoverTargetLookTarget = new THREE.Vector3();
+const handoverCurrentLookTarget = new THREE.Vector3();
+const exitAwayDirection = new THREE.Vector3(); // OPT-3: reusable, avoids per-frame allocation
+let smoothInited = false;
+let handoverStartedAtMs = 0;
+let handoverTargetTourTime = 0;
+
+function captureCurrentLookTarget(out) {
+  camera.getWorldDirection(cameraForward);
+  out.copy(camera.position).addScaledVector(cameraForward, Math.max(state.cityMaxDim * 0.25, 1));
+}
+
+function setControlMode(mode) {
+  state.controlMode = mode;
+  state.autoPilot = mode === 'autopilot';
+  controls.enabled = mode === 'manual';
+}
+
+function enterManualMode() {
+  setControlMode('manual');
+  captureCurrentLookTarget(controls.target);
+  controls.update();
+  smoothInited = false;
+  lockController.pauseForManual();
+  setStatusLine('MANUAL CONTROL', false);
+}
+
+function startAutopilotHandover(nowMs = performance.now()) {
+  if (!state.keyframes.length) {
+    setControlMode('autopilot');
+    lockController.startScanning({ initialDelayMs: APP_CONFIG.timing.scanResumeDelayMs });
+    setStatusLine('AUTOPILOT', false);
+    return;
+  }
+
+  handoverStartPos.copy(camera.position);
+  captureCurrentLookTarget(handoverStartLookTarget);
+  handoverTargetTourTime = findNearestPanoramaTime({
+    keyframes: state.keyframes,
+    cityCenter,
+    currentTourTime: state.tourTime * APP_CONFIG.lock.exitPanoramaTimeScale,
+    position: camera.position,
+    sampleCount: APP_CONFIG.lock.tourSampleCount,
+  });
+  samplePanoramaPose({
+    keyframes: state.keyframes,
+    cityCenter,
+    t: handoverTargetTourTime,
+    positionOut: handoverTargetPos,
+    lookTargetOut: handoverTargetLookTarget,
+  });
+
+  setControlMode('handover_to_autopilot');
+  handoverStartedAtMs = nowMs;
+  setStatusLine('RESYNCING AUTOPILOT...', true);
+}
+
+function requestManualFromLock() {
+  setControlMode('handover_to_manual');
+  lockController.interruptToManual({
+    durationMs: APP_CONFIG.timing.lockInterruptDurationMs,
+    onDone: () => {
+      if (state.controlMode !== 'handover_to_manual') return;
+      enterManualMode();
+    },
+  });
+}
+
 renderer.domElement.addEventListener('pointerdown', (event) => {
   state.pointerDownPosition = { x: event.clientX, y: event.clientY };
 });
@@ -282,26 +381,22 @@ renderer.domElement.addEventListener('pointerup', (event) => {
 
   if (Math.sqrt(dx * dx + dy * dy) > APP_CONFIG.input.tapThresholdPx) return;
 
-  state.autoPilot = !state.autoPilot;
-  controls.enabled = !state.autoPilot;
-  if (!state.autoPilot) controls.update();
-  setStatusLine(state.autoPilot ? 'AUTOPILOT' : 'MANUAL CONTROL');
+  if (state.controlMode === 'handover_to_manual' || state.controlMode === 'handover_to_autopilot') return;
+
+  if (state.controlMode === 'autopilot') {
+    if (state.lockState === 'locking' || state.lockState === 'exiting' || state.lockState === 'interrupting') {
+      if (state.lockState === 'interrupting') return;
+      requestManualFromLock();
+      return;
+    }
+    enterManualMode();
+    return;
+  }
+
+  if (state.controlMode === 'manual') {
+    startAutopilotHandover();
+  }
 });
-
-const clock = new THREE.Timer();
-const smoothCamPos = new THREE.Vector3();
-const smoothLookAt = new THREE.Vector3();
-const cameraWorldPosition = new THREE.Vector3();
-const cameraForward = new THREE.Vector3();
-const autopilotTargetPos = new THREE.Vector3();
-const autopilotLookTarget = new THREE.Vector3();
-const exitAwayDirection = new THREE.Vector3(); // OPT-3: reusable, avoids per-frame allocation
-let smoothInited = false;
-
-function captureCurrentLookTarget(out) {
-  camera.getWorldDirection(cameraForward);
-  out.copy(camera.position).addScaledVector(cameraForward, Math.max(state.cityMaxDim * 0.25, 1));
-}
 
 function animate(now) {
   requestAnimationFrame(animate);
@@ -314,10 +409,7 @@ function animate(now) {
     + Math.sin(state.tourTime * APP_CONFIG.scene.sunPulseRate) * APP_CONFIG.scene.sunPulseAmplitude;
 
   if (state.sceneReady) {
-    if (!state.autoPilot) {
-      controls.update();
-      smoothInited = false;
-    } else if (state.lockState === 'locking') {
+    if (state.lockState === 'locking') {
       if (!smoothInited) {
         smoothCamPos.copy(camera.position);
         captureCurrentLookTarget(smoothLookAt);
@@ -373,7 +465,31 @@ function animate(now) {
       smoothLookAt.lerp(autopilotLookTarget, APP_CONFIG.camera.lockLerpSpeed);
       camera.position.copy(smoothCamPos);
       camera.lookAt(smoothLookAt);
-    } else {
+    } else if (state.controlMode === 'handover_to_autopilot') {
+      const handoverDurationMs = Math.max(1, APP_CONFIG.timing.autopilotHandoverMs);
+      const handoverElapsedMs = Math.max(0, now - handoverStartedAtMs);
+      const handoverProgress = Math.min(1, handoverElapsedMs / handoverDurationMs);
+      const handoverBlend = THREE.MathUtils.smootherstep(handoverProgress, 0, 1);
+
+      smoothCamPos.lerpVectors(handoverStartPos, handoverTargetPos, handoverBlend);
+      handoverCurrentLookTarget.lerpVectors(handoverStartLookTarget, handoverTargetLookTarget, handoverBlend);
+      camera.position.copy(smoothCamPos);
+      camera.lookAt(handoverCurrentLookTarget);
+
+      if (handoverProgress >= 1) {
+        const panoramaScale = Math.max(APP_CONFIG.lock.exitPanoramaTimeScale, Number.EPSILON);
+        state.tourTime = handoverTargetTourTime / panoramaScale;
+        setControlMode('autopilot');
+        smoothInited = false;
+        setStatusLine('AUTOPILOT', false);
+        lockController.startScanning({ initialDelayMs: APP_CONFIG.timing.scanResumeDelayMs });
+      }
+    } else if (state.controlMode === 'handover_to_manual') {
+      smoothInited = false;
+    } else if (state.controlMode === 'manual') {
+      controls.update();
+      smoothInited = false;
+    } else if (state.controlMode === 'autopilot') {
       state.tourTime += dt;
       if (!smoothInited) {
         smoothCamPos.copy(camera.position);
@@ -393,6 +509,8 @@ function animate(now) {
         camera.position.copy(smoothCamPos);
         camera.lookAt(smoothLookAt);
       }
+    } else {
+      smoothInited = false;
     }
 
     updateLodVisibility({
@@ -418,5 +536,8 @@ addEventListener('resize', () => {
   viewportResolution.set(innerWidth, innerHeight);
 });
 
-runHudSequence();
-autoLoad();
+runHudSequence(() => {
+  hudSequenceComplete = true;
+  hudBootComplete = true;
+  autoLoad();
+});

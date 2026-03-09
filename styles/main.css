@@ -35,7 +35,6 @@
   --panel-label-letter-spacing: 1px;
   --panel-value-shadow: 0 0 6px var(--color-green), 0 0 14px var(--color-green-glow-2), 0 0 28px var(--color-green-glow-3);
 
-  --crt-radius: clamp(24px, 5vw, 72px);
   --crt-grid-step: 24px;
   --crt-grid-major-step: 96px;
   --crt-grid-line: rgb(76 255 122 / 12%);
@@ -68,7 +67,7 @@ body {
   inset: 0;
   z-index: 6;
   pointer-events: none;
-  border-radius: var(--crt-radius);
+  border-radius: 0;
   overflow: hidden;
   background:
     radial-gradient(circle at 19% 23%, var(--crt-noise-a) 0 0.9px, transparent 1.1px),
@@ -202,6 +201,19 @@ canvas {
   text-shadow: var(--panel-value-shadow);
 }
 
+/* Keep top-left HUD rows stable across widths. */
+#hud .plbl {
+  flex: 0 0 var(--panel-label-min-width);
+}
+
+#hud .pval {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .scanning {
   animation: scanBlink 0.7s step-end infinite;
 }
@@ -275,10 +287,39 @@ canvas {
     --panel-line-height: 1.3;
     --panel-row-gap: 6px;
     --panel-label-min-width: 50px;
-    --screen-global-blur: 0.55px;
-    --crt-radius: clamp(16px, 4vw, 40px);
-    --crt-grid-step: 20px;
-    --crt-grid-major-step: 80px;
+    --screen-global-blur: 0.15px;
+    --crt-grid-step: 28px;
+    --crt-grid-major-step: 112px;
+    --crt-grid-line: rgb(76 255 122 / 6%);
+    --crt-grid-major-line: rgb(76 255 122 / 12%);
+    --crt-noise-a: rgb(210 255 220 / 8%);
+    --crt-noise-b: rgb(255 235 200 / 5%);
+    --crt-noise-c: rgb(180 220 255 / 5%);
+  }
+
+  body {
+    transform: none;
+  }
+
+  canvas {
+    filter: none;
+  }
+
+  #crt {
+    animation: none;
+    box-shadow:
+      inset 0 0 1px rgb(76 255 122 / 28%),
+      inset 0 0 64px rgb(0 0 0 / 28%);
+  }
+
+  #crt::before {
+    opacity: 0.24;
+    transform: none;
+  }
+
+  #crt::after {
+    opacity: 0.2;
+    transform: none;
   }
 }
 
@@ -294,14 +335,33 @@ canvas {
     --panel-label-min-width: 38px;
     --panel-label-letter-spacing: -0.2px;
     --panel-value-shadow: 0 0 4px var(--color-green);
-    --screen-global-blur: 0.45px;
-    --crt-radius: clamp(12px, 3.5vw, 24px);
-    --crt-grid-step: 18px;
-    --crt-grid-major-step: 72px;
+    --screen-global-blur: 0;
+    --crt-grid-step: 32px;
+    --crt-grid-major-step: 128px;
+    --crt-grid-line: rgb(76 255 122 / 4%);
+    --crt-grid-major-line: rgb(76 255 122 / 8%);
+    --crt-noise-a: rgb(210 255 220 / 5%);
+    --crt-noise-b: rgb(255 235 200 / 3%);
+    --crt-noise-c: rgb(180 220 255 / 3%);
   }
 
   .panel {
     overflow: hidden; /* Prevent text from spilling into center */
+  }
+
+  #crt {
+    animation: none;
+    box-shadow: inset 0 0 40px rgb(0 0 0 / 24%);
+  }
+
+  #crt::before {
+    opacity: 0.16;
+    transform: none;
+  }
+
+  #crt::after {
+    opacity: 0.14;
+    transform: none;
   }
 
   /* Ensure rows stay compact but left-aligned */
@@ -311,7 +371,7 @@ canvas {
 }
 
 /* Target Tracker / Reticle
-   NOTE: jitter + stepped pulse are intentional "nervous" artifacts (see LOCKING.md). */
+   NOTE: jitter + stepped pulse are intentional "nervous" artifacts. */
 #reticle {
   position: fixed;
   pointer-events: none;

@@ -1,6 +1,7 @@
 export function createAppState() {
   return {
     autoPilot: true,
+    controlMode: 'autopilot',
     sceneReady: false,
     lockState: 'idle',
 

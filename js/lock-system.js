@@ -86,6 +86,27 @@ export function createLockController({
 }) {
   let lockLineCoreMaterial = null;
   let lockLineHaloMaterial = null;
+  let scanTimer = null;
+  let exitTimer = null;
+  let interruptTimer = null;
+
+  function clearScanTimer() {
+    if (!scanTimer) return;
+    clearTimeout(scanTimer);
+    scanTimer = null;
+  }
+
+  function clearExitTimer() {
+    if (!exitTimer) return;
+    clearTimeout(exitTimer);
+    exitTimer = null;
+  }
+
+  function clearInterruptTimer() {
+    if (!interruptTimer) return;
+    clearTimeout(interruptTimer);
+    interruptTimer = null;
+  }
 
   function hideReticle(reticleEl) {
     if (!reticleEl) return;
@@ -97,15 +118,35 @@ export function createLockController({
     reticleEl.style.top = '-200vh';
   }
 
+  function clearLockVisuals() {
+    if (state.lockSilhouetteGroup) {
+      scene.remove(state.lockSilhouetteGroup);
+      state.lockSilhouetteGroup = null;
+    }
+    state.reticleEnabled = false;
+    hideReticle(document.getElementById('reticle'));
+    document.body.classList.remove('reticle-acquiring');
+  }
+
+  function clearLockTargetState() {
+    state.lockedLod = null;
+    state.lockedCenters = new Set();
+    state.lockZoneCenter = null;
+    state.lockOrbitStartAngle = 0;
+    state.lockOrbitRadiusStart = 0;
+    state.lockOrbitRadiusEnd = 0;
+    state.lockOrbitHeight = 0;
+    state.lockStartedAtMs = 0;
+    state.lockTargetRadius = 0;
+  }
+
   function startLock() {
+    if (!state.autoPilot || state.controlMode !== 'autopilot') return;
     if (lodObjects.length === 0) return;
 
     const pool = getZoneCells();
     if (pool.length === 0) {
-      setTimeout(
-        startLock,
-        appConfig.timing.scanToLockDelayMs + Math.random() * appConfig.timing.scanRetryJitterMs,
-      );
+      startScanning();
       return;
     }
 
@@ -217,47 +258,85 @@ export function createLockController({
       state.panelEverShown = true;
     }
 
-    state.lockTimer = setTimeout(exitLock, appConfig.timing.lockDurationMs);
+    state.lockTimer = setTimeout(() => exitLock({ resumeScanning: true }), appConfig.timing.lockDurationMs);
   }
 
-  function exitLock() {
+  function exitLock({ resumeScanning = true } = {}) {
+    if (state.lockTimer) {
+      clearTimeout(state.lockTimer);
+      state.lockTimer = null;
+    }
+    clearScanTimer();
+    clearInterruptTimer();
+
+    state.lockState = 'exiting';
+
+    clearLockVisuals();
+    clearLockTargetState();
+
+    clearExitTimer();
+    exitTimer = setTimeout(() => {
+      exitTimer = null;
+      state.lockState = 'idle';
+      if (resumeScanning && state.autoPilot && state.controlMode === 'autopilot') {
+        startScanning();
+      }
+    }, appConfig.timing.lockExitDelayMs);
+  }
+
+  function startScanning({ initialDelayMs = 0 } = {}) {
+    clearScanTimer();
+    if (!state.autoPilot || state.controlMode !== 'autopilot') {
+      state.lockState = 'idle';
+      return;
+    }
+
+    state.lockState = 'scanning';
+    setStatusLine('SCANNING...', true);
+    const delay = Math.max(0, initialDelayMs)
+      + appConfig.timing.scanToLockDelayMs
+      + Math.random() * appConfig.timing.scanRetryJitterMs;
+    scanTimer = setTimeout(() => {
+      scanTimer = null;
+      startLock();
+    }, delay);
+  }
+
+  function pauseForManual() {
+    clearScanTimer();
+    clearExitTimer();
+    clearInterruptTimer();
+    if (state.lockTimer) {
+      clearTimeout(state.lockTimer);
+      state.lockTimer = null;
+    }
+    clearLockVisuals();
+    clearLockTargetState();
+    state.lockState = 'idle';
+  }
+
+  function interruptToManual({
+    durationMs = appConfig.timing.lockInterruptDurationMs,
+    onDone,
+  } = {}) {
+    clearScanTimer();
+    clearExitTimer();
+    clearInterruptTimer();
     if (state.lockTimer) {
       clearTimeout(state.lockTimer);
       state.lockTimer = null;
     }
 
-    state.lockState = 'exiting';
+    clearLockVisuals();
+    clearLockTargetState();
+    state.lockState = 'interrupting';
+    setStatusLine('INTERRUPTING...', true);
 
-    if (state.lockSilhouetteGroup) {
-      scene.remove(state.lockSilhouetteGroup);
-      state.lockSilhouetteGroup = null;
-    }
-    state.reticleEnabled = false;
-    const reticleEl = document.getElementById('reticle');
-    hideReticle(reticleEl);
-    document.body.classList.remove('reticle-acquiring');
-
-    state.lockedLod = null;
-    state.lockedCenters = new Set();
-    state.lockZoneCenter = null;
-    state.lockOrbitStartAngle = 0;
-    state.lockOrbitRadiusStart = 0;
-    state.lockOrbitRadiusEnd = 0;
-    state.lockOrbitHeight = 0;
-    state.lockStartedAtMs = 0;
-
-    setTimeout(() => {
+    interruptTimer = setTimeout(() => {
+      interruptTimer = null;
       state.lockState = 'idle';
-      startScanning();
-    }, appConfig.timing.lockExitDelayMs);
-  }
-
-  function startScanning() {
-    setStatusLine('SCANNING...', true);
-    setTimeout(
-      startLock,
-      appConfig.timing.scanToLockDelayMs + Math.random() * appConfig.timing.scanRetryJitterMs,
-    );
+      onDone?.();
+    }, Math.max(0, durationMs));
   }
 
   function tickLockVisibility(deltaTime) {
@@ -380,6 +459,8 @@ export function createLockController({
     startScanning,
     startLock,
     exitLock,
+    pauseForManual,
+    interruptToManual,
     tickLockVisibility,
   };
 }

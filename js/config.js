@@ -15,10 +15,13 @@ export const APP_CONFIG = Object.freeze({
   timing: Object.freeze({
     frameMs: 1000 / 25,
     scanStartDelayMs: 6000,
+    scanResumeDelayMs: 700,
     scanToLockDelayMs: 2000,
     scanRetryJitterMs: 2000,
     lockDurationMs: 18000,
     lockExitDelayMs: 4000,
+    lockInterruptDurationMs: 3000,
+    autopilotHandoverMs: 1500,
     hudCharDelayMs: 26,
     hudLineGapMs: 60,
   }),
@@ -143,7 +146,7 @@ export const HUD_LINES = Object.freeze([
   Object.freeze({ lbl: 'LOCATION', val: '40.7831 N   73.9712 W' }),
   Object.freeze({ lbl: 'CITY    ', val: 'NEW YORK' }),
   Object.freeze({ lbl: 'YEAR    ', val: '2037' }),
-  Object.freeze({ lbl: 'STATUS  ', val: 'INITIALIZING...' }),
+  Object.freeze({ lbl: 'STATUS  ', val: 'LOADING...' }),
 ]);
 
 export const SECTORS = Object.freeze([

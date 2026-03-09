@@ -18,16 +18,18 @@ Green wireframe city. Curved CRT glass, tactical grid, animated noise, scanlines
 - **Additive glow** — two-layer line system (core + halo) simulating CRT phosphor bloom
 - **Cinematic autopilot** — smooth 7-keyframe panoramic tour using cubic Hermite interpolation (smootherstep), varying distance, height and angle continuously
 - **Chunked async loading** — model geometry is converted one mesh per frame via `requestAnimationFrame`, keeping the UI responsive and making the city materialise progressively as a visual feature
-- **HUD typewriter** — terminal-style boot sequence types out system info in parallel with loading; flicker animation on the whole HUD simulates phosphor instability
+- **HUD-gated boot sequence** — terminal-style typewriter completes first with `STATUS: LOADING...`; model chunk loading starts only after HUD boot is complete, then transitions to `INITIALIZING...` and `SCANNING...`
 - **3-level LOD on mobile** — edge geometry at crease angles 20° / 50° / 70°, switched by camera distance; desktop uses 2 levels
 - **Frustum culling** — `LineSegments2` objects carry explicit bounding spheres and are culled when outside the camera frustum
 - **Mobile optimisations** — narrower lines, reduced halo opacity, denser fog, `pixelRatio` locked to 1, `powerPreference: high-performance`
 - **Fixed 25 fps cap** — render loop throttled via `performance.now()` delta check; smooth on low-end devices
 - **CRT overlay stack** — curved-glass mask, tactical grid, animated tri-tone noise, scanlines and RGB shift, implemented in CSS over the WebGL canvas (no shader pass)
-- **Tap to toggle** — tap/click anywhere on the scene to switch between autopilot and manual OrbitControls; pointer drag is distinguished from tap via 8px threshold
+- **State-aware mode switching** — tap/click toggles autopilot and manual view, but during an active lock it first runs a short `INTERRUPTING...` release sequence for a clean handoff
+- **Autopilot re-sync transition** — when returning from manual mode, camera motion blends back to the nearest tour segment (`RESYNCING AUTOPILOT...`) to avoid visible jump-cuts before scan resumes
 - **Dual-model architecture** — original `scene.glb` for visual fidelity, `scene_zoned.glb` for zone logic and lock targeting
 - **Target Acquisition & Tracking** — autonomous HUD reticle using 3D-to-2D projection; frames buildings precisely via volumetric bounding-box corners.
 - **Responsive HUD** — dynamic scaling and positioning to prevent overlap on mobile/portrait screens; uses CSS `clamp` and `calc` for definitive panel separation.
+- **Intentional digital artifacts** — reticle jitter, stepped pulse and mild HUD instability are deliberate aesthetic choices, not defects.
 
 ---
 
@@ -109,7 +111,7 @@ Then open `http://localhost:PORT/index.html` in your browser.
 
 | Input | Action |
 |---|---|
-| Tap / Click | Toggle autopilot ↔ manual control |
+| Tap / Click | Switch mode; if lock is active, run `INTERRUPTING...` transition first |
 | Drag | Orbit camera (manual mode) |
 | Scroll / Pinch | Zoom (manual mode) |
 | Right-click drag | Pan (manual mode) |

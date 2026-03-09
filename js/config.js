@@ -7,8 +7,8 @@ export const APP_CONFIG = Object.freeze({
     green: 0x4cff7a,
     background: 0x010302,
     risk: Object.freeze({
-      LOW: 0xffffff,
-      MEDIUM: 0xff8800,
+      LOW: 0xffd400,
+      MEDIUM: 0xc85a00,
       HIGH: 0xff3333,
     }),
   }),
@@ -94,9 +94,9 @@ export const APP_CONFIG = Object.freeze({
   }),
   lockLines: Object.freeze({
     coreWidth: 4,
-    coreOpacity: 0.95,
-    haloWidth: 10,
-    haloOpacity: 0.25,
+    coreOpacity: 0.82,
+    haloWidth: 7,
+    haloOpacity: 0.11,
   }),
   lock: Object.freeze({
     clipPaddingRatio: 0.01,

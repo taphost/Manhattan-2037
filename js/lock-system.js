@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
+import { createTypewriter } from './typewriter.js';
 
 function makeZoneClipPlanes(box) {
   return [
@@ -89,6 +90,18 @@ export function createLockController({
   let scanTimer = null;
   let exitTimer = null;
   let interruptTimer = null;
+  const panelTypewriter = createTypewriter({ jitterMs: appConfig.hud.valueTypeJitterMs });
+  let panelSequenceToken = 0;
+  let panelBootTypePending = true;
+  let panelShowingPlaceholders = false;
+  const panelPendingText = 'PENDING...';
+  const targetPanelRows = [
+    { id: 't-name', label: 'TARGET  ' },
+    { id: 't-sector', label: 'SECTOR  ' },
+    { id: 't-risk', label: 'RISK    ' },
+    { id: 't-threat', label: 'THREAT  ' },
+    { id: 't-uplink', label: 'UPLINK  ' },
+  ];
 
   function clearScanTimer() {
     if (!scanTimer) return;
@@ -106,6 +119,87 @@ export function createLockController({
     if (!interruptTimer) return;
     clearTimeout(interruptTimer);
     interruptTimer = null;
+  }
+
+  function buildTargetPanelRows(valueMap, rowOptions = {}) {
+    return targetPanelRows.map((row) => ({
+      ...row,
+      text: valueMap[row.id] ?? panelPendingText,
+      onBeforeType: rowOptions[row.id]?.onBeforeType ?? null,
+    }));
+  }
+
+  function setTargetPanelValueClasses({ pending = false, riskClass = null } = {}) {
+    for (const row of targetPanelRows) {
+      const valueElement = document.getElementById(row.id);
+      if (!valueElement) continue;
+      valueElement.className = 'pval';
+      valueElement.classList.toggle('pending', pending);
+      if (row.id === 't-risk' && riskClass) {
+        valueElement.classList.add(riskClass);
+      }
+    }
+  }
+
+  function clearTargetPanelText() {
+    for (const row of targetPanelRows) {
+      const valueElement = document.getElementById(row.id);
+      if (!valueElement) continue;
+      valueElement.textContent = '';
+      const labelElement = valueElement.closest('.prow')?.querySelector('.plbl');
+      if (labelElement) {
+        labelElement.textContent = '';
+      }
+    }
+    panelShowingPlaceholders = false;
+  }
+
+  function typewritePanelRows(rows, { includeLabels = false } = {}) {
+    const token = ++panelSequenceToken;
+    const preparedRows = rows
+      .map((row) => {
+        const valueElement = document.getElementById(row.id);
+        const labelElement = includeLabels
+          ? valueElement?.closest('.prow')?.querySelector('.plbl') ?? null
+          : null;
+        return {
+          label: row.label ?? '',
+          text: row.text,
+          valueElement,
+          labelElement,
+          onBeforeType: row.onBeforeType ?? null,
+        };
+      })
+      .filter((row) => row.valueElement);
+    let index = 0;
+
+    function nextRow() {
+      if (token !== panelSequenceToken) return;
+      if (index >= preparedRows.length) return;
+      const row = preparedRows[index++];
+      row.onBeforeType?.();
+
+      panelTypewriter.typewrite({
+        labelElement: includeLabels ? row.labelElement : null,
+        label: includeLabels ? row.label : '',
+        valueElement: row.valueElement,
+        value: row.text,
+        charDelayMs: appConfig.timing.hudCharDelayMs,
+        withCursor: true,
+        onDone: () => setTimeout(nextRow, appConfig.timing.hudLineGapMs),
+      });
+    }
+
+    nextRow();
+  }
+
+  function ensureTargetPanelVisible() {
+    if (state.panelEverShown) return;
+    const targetPanel = document.getElementById('target-panel');
+    if (!targetPanel) return;
+    clearTargetPanelText();
+    targetPanel.style.display = 'block';
+    state.panelEverShown = true;
   }
 
   function hideReticle(reticleEl) {
@@ -128,6 +222,57 @@ export function createLockController({
     document.body.classList.remove('reticle-acquiring');
   }
 
+  function resetTargetPanel() {
+    setTargetPanelValueClasses({ pending: true });
+    const includeLabels = panelBootTypePending && state.panelEverShown;
+    if (panelShowingPlaceholders && !includeLabels) return;
+    typewritePanelRows(
+      buildTargetPanelRows({
+        't-name': panelPendingText,
+        't-sector': panelPendingText,
+        't-risk': panelPendingText,
+        't-threat': panelPendingText,
+        't-uplink': panelPendingText,
+      }),
+      { includeLabels },
+    );
+    panelShowingPlaceholders = true;
+    if (includeLabels) {
+      panelBootTypePending = false;
+    }
+  }
+
+  function fillTargetPanel({
+    label,
+    sector,
+    risk,
+    threat,
+    uplink,
+  }) {
+    setTargetPanelValueClasses({ pending: false });
+    panelShowingPlaceholders = false;
+    typewritePanelRows(
+      buildTargetPanelRows(
+        {
+          't-name': label,
+          't-sector': `ZONE ${sector}`,
+          't-risk': risk.label,
+          't-threat': threat,
+          't-uplink': uplink,
+        },
+        {
+          't-risk': {
+            onBeforeType: () => {
+              const riskElement = document.getElementById('t-risk');
+              if (!riskElement) return;
+              riskElement.className = `pval ${risk.cls}`;
+            },
+          },
+        },
+      ),
+    );
+  }
+
   function clearLockTargetState() {
     state.lockedLod = null;
     state.lockedCenters = new Set();
@@ -138,6 +283,7 @@ export function createLockController({
     state.lockOrbitHeight = 0;
     state.lockStartedAtMs = 0;
     state.lockTargetRadius = 0;
+    resetTargetPanel();
   }
 
   function startLock() {
@@ -237,25 +383,20 @@ export function createLockController({
       ? rawName.replace(/_/g, ' ').toUpperCase().slice(0, appConfig.lock.labelMaxLength)
       : `BLD-${buildingNumber}`;
 
-    document.getElementById('t-name').textContent = label;
-    document.getElementById('t-sector').textContent = `ZONE ${sector}`;
-    const riskElement = document.getElementById('t-risk');
-    riskElement.textContent = risk.label;
-    riskElement.className = `pval ${risk.cls}`;
-    document.getElementById('t-threat').textContent = threat;
-    document.getElementById('t-uplink').textContent =
-      uplinkOptions[Math.floor(Math.random() * uplinkOptions.length)];
+    ensureTargetPanelVisible();
+    fillTargetPanel({
+      label,
+      sector,
+      risk,
+      threat,
+      uplink: uplinkOptions[Math.floor(Math.random() * uplinkOptions.length)],
+    });
 
     const reticleEl = document.getElementById('reticle');
     if (reticleEl) {
       reticleEl.style.setProperty('--reticle-color', `#${riskColor.toString(16).padStart(6, '0')}`);
       hideReticle(reticleEl);
       document.body.classList.add('reticle-acquiring');
-    }
-
-    if (!state.panelEverShown) {
-      document.getElementById('target-panel').style.display = 'block';
-      state.panelEverShown = true;
     }
 
     state.lockTimer = setTimeout(() => exitLock({ resumeScanning: true }), appConfig.timing.lockDurationMs);
@@ -270,6 +411,8 @@ export function createLockController({
     clearInterruptTimer();
 
     state.lockState = 'exiting';
+    // Avoid stale "TARGET LOCKED" text while lock visuals are already cleared.
+    setStatusLine(resumeScanning ? 'SCANNING...' : 'AUTOPILOT', !!resumeScanning);
 
     clearLockVisuals();
     clearLockTargetState();
@@ -291,7 +434,12 @@ export function createLockController({
       return;
     }
 
+    const wasScanning = state.lockState === 'scanning';
     state.lockState = 'scanning';
+    ensureTargetPanelVisible();
+    if (!wasScanning) {
+      resetTargetPanel();
+    }
     setStatusLine('SCANNING...', true);
     const delay = Math.max(0, initialDelayMs)
       + appConfig.timing.scanToLockDelayMs

@@ -13,6 +13,7 @@ import {
 import { applyMeshToLod, buildGridLookup, parseZoneName, updateLodVisibility } from './lod.js';
 import { collectVisualMeshes, collectZoneObjects, computeSceneMetrics, loadModelPair } from './loader.js';
 import { createLockController } from './lock-system.js';
+import { createTypewriter } from './typewriter.js';
 
 const IS_MOBILE = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || innerWidth < 768;
 const COLOR_GREEN = APP_CONFIG.colors.green;
@@ -109,32 +110,12 @@ function makeLineMaterial(linewidth, opacity, color, noDepthTest) {
 
 const cityLineCoreMaterial = makeLineMaterial(APP_CONFIG.lines.coreWidth, APP_CONFIG.lines.coreOpacity);
 const cityLineHaloMaterial = makeLineMaterial(APP_CONFIG.lines.haloWidth, APP_CONFIG.lines.haloOpacity);
+const hudTypewriter = createTypewriter({ jitterMs: APP_CONFIG.hud.valueTypeJitterMs });
 
 function setStatusLine(text, blink) {
   const statusElement = document.getElementById(APP_CONFIG.hud.statusValueElementId);
   statusElement.textContent = text;
   statusElement.classList.toggle('scanning', !!blink);
-}
-
-function typewrite(valueElement, labelElement, label, value, charDelayMs, onDone) {
-  labelElement.textContent = label;
-  valueElement.textContent = '';
-  let index = 0;
-  const cursor = document.createElement('span');
-  cursor.className = 'cur';
-  valueElement.appendChild(cursor);
-
-  function tick() {
-    if (index >= value.length) {
-      cursor.remove();
-      onDone?.();
-      return;
-    }
-    cursor.before(document.createTextNode(value[index++]));
-    setTimeout(tick, charDelayMs + Math.random() * APP_CONFIG.hud.valueTypeJitterMs);
-  }
-
-  tick();
 }
 
 function maybeStartBootSequence() {
@@ -149,6 +130,7 @@ function maybeStartBootSequence() {
 
 function runHudSequence(onDone) {
   document.getElementById('hud').style.display = 'block';
+  const statusLineIndex = HUD_LINES.length - 1;
   let lineIndex = 0;
 
   function nextLine() {
@@ -156,15 +138,20 @@ function runHudSequence(onDone) {
       onDone?.();
       return;
     }
+    const valueElement = document.getElementById(`val${lineIndex}`);
+    if (lineIndex === statusLineIndex && valueElement) {
+      valueElement.classList.add('scanning');
+    }
     const { lbl, val } = HUD_LINES[lineIndex];
-    typewrite(
-      document.getElementById(`val${lineIndex}`),
-      document.getElementById(`lbl${lineIndex}`),
-      lbl,
-      val,
-      APP_CONFIG.timing.hudCharDelayMs,
-      () => setTimeout(nextLine, APP_CONFIG.timing.hudLineGapMs),
-    );
+    hudTypewriter.typewrite({
+      valueElement,
+      labelElement: document.getElementById(`lbl${lineIndex}`),
+      label: lbl,
+      value: val,
+      charDelayMs: APP_CONFIG.timing.hudCharDelayMs,
+      onDone: () => setTimeout(nextLine, APP_CONFIG.timing.hudLineGapMs),
+      withCursor: true,
+    });
     lineIndex += 1;
   }
 

@@ -18,9 +18,9 @@
   --color-green-glow-2: #4cff7a88;
   --color-green-glow-3: #4cff7a44;
   --color-green-glow-reticle: #4cff7a33;
-  --color-risk-low: #ffffff;
-  --color-risk-medium: #ff8800;
-  --color-risk-medium-glow: #ff880099;
+  --color-risk-low: #ffd400;
+  --color-risk-medium: #c85a00;
+  --color-risk-medium-glow: #c85a0099;
   --color-risk-high: #ff3333;
   --color-risk-high-glow: #ff333399;
 
@@ -34,6 +34,7 @@
   --panel-label-min-width: 80px;
   --panel-label-letter-spacing: 1px;
   --panel-value-shadow: 0 0 6px var(--color-green), 0 0 14px var(--color-green-glow-2), 0 0 28px var(--color-green-glow-3);
+  --hud-blink-duration: 0.7s;
 
   --crt-grid-step: 24px;
   --crt-grid-major-step: 96px;
@@ -182,6 +183,7 @@ canvas {
   right: var(--hud-right);
   display: none;
   width: var(--panel-width);
+  animation: none;
 }
 
 /* Shared row/label/value */
@@ -201,6 +203,10 @@ canvas {
   text-shadow: var(--panel-value-shadow);
 }
 
+.pval.pending {
+  animation: scanBlink var(--hud-blink-duration) step-end infinite;
+}
+
 /* Keep top-left HUD rows stable across widths. */
 #hud .plbl {
   flex: 0 0 var(--panel-label-min-width);
@@ -215,7 +221,7 @@ canvas {
 }
 
 .scanning {
-  animation: scanBlink 0.7s step-end infinite;
+  animation: scanBlink var(--hud-blink-duration) step-end infinite;
 }
 
 @keyframes scanBlink {

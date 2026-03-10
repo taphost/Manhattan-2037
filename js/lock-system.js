@@ -94,7 +94,7 @@ export function createLockController({
   let panelSequenceToken = 0;
   let panelBootTypePending = true;
   let panelShowingPlaceholders = false;
-  const panelPendingText = 'PENDING...';
+  const panelPendingText = '';
   const targetPanelRows = [
     { id: 't-name', label: 'TARGET  ' },
     { id: 't-sector', label: 'SECTOR  ' },
@@ -154,7 +154,7 @@ export function createLockController({
     panelShowingPlaceholders = false;
   }
 
-  function typewritePanelRows(rows, { includeLabels = false } = {}) {
+  function typewritePanelRows(rows, { includeLabels = false, withCursor = true } = {}) {
     const token = ++panelSequenceToken;
     const preparedRows = rows
       .map((row) => {
@@ -185,7 +185,7 @@ export function createLockController({
         valueElement: row.valueElement,
         value: row.text,
         charDelayMs: appConfig.timing.hudCharDelayMs,
-        withCursor: true,
+        withCursor,
         onDone: () => setTimeout(nextRow, appConfig.timing.hudLineGapMs),
       });
     }
@@ -234,7 +234,7 @@ export function createLockController({
         't-threat': panelPendingText,
         't-uplink': panelPendingText,
       }),
-      { includeLabels },
+      { includeLabels, withCursor: false },
     );
     panelShowingPlaceholders = true;
     if (includeLabels) {

@@ -204,7 +204,24 @@ canvas {
 }
 
 .pval.pending {
-  animation: scanBlink var(--hud-blink-duration) step-end infinite;
+  position: relative;
+  color: transparent;
+  text-shadow: none;
+}
+
+.pval.pending::before {
+  content: '';
+  display: inline-block;
+  width: 31px;
+  height: 10px;
+  vertical-align: middle;
+  background:
+    linear-gradient(var(--color-green-soft) 0 0) 0 100% / 4px 36% no-repeat,
+    linear-gradient(var(--color-green-soft) 0 0) 9px 100% / 4px 62% no-repeat,
+    linear-gradient(var(--color-green-soft) 0 0) 18px 100% / 4px 86% no-repeat,
+    linear-gradient(var(--color-green-soft) 0 0) 27px 100% / 4px 58% no-repeat;
+  filter: drop-shadow(0 0 5px var(--color-green-glow-2));
+  animation: pendingWave 1s steps(1, end) infinite;
 }
 
 /* Keep top-left HUD rows stable across widths. */
@@ -227,6 +244,22 @@ canvas {
 @keyframes scanBlink {
   50% {
     opacity: 0.15;
+  }
+}
+
+@keyframes pendingWave {
+  0%,
+  100% {
+    background-size: 4px 36%, 4px 62%, 4px 86%, 4px 58%;
+  }
+  25% {
+    background-size: 4px 72%, 4px 36%, 4px 62%, 4px 86%;
+  }
+  50% {
+    background-size: 4px 58%, 4px 86%, 4px 36%, 4px 62%;
+  }
+  75% {
+    background-size: 4px 86%, 4px 58%, 4px 72%, 4px 36%;
   }
 }
 

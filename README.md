@@ -28,6 +28,9 @@ Green wireframe city. CRT-style overlay, tactical grid, animated noise, scanline
 - **Autopilot re-sync transition** — when returning from manual mode, camera motion blends back to the nearest tour segment (`RESYNCING AUTOPILOT...`) to avoid visible jump-cuts before scan resumes
 - **Dual-model architecture** — original `scene.glb` for visual fidelity, `scene_zoned.glb` for zone logic and lock targeting
 - **Target Acquisition & Tracking** — autonomous HUD reticle using 3D-to-2D projection; frames buildings precisely via volumetric bounding-box corners.
+- **Hard reticle visibility guard** — invalid/behind-camera projections are rejected and the reticle is force-hidden off-screen to avoid center pop artifacts.
+- **Sequential target panel updates** — right panel values are rewritten top-down with a terminal-style typewriter cadence, not all at once.
+- **Miniwave pending placeholders** — scan/reset states use a compact animated wave marker instead of blinking placeholder text.
 - **Responsive HUD** — dynamic scaling and positioning to prevent overlap on mobile/portrait screens; uses CSS `clamp` and `calc` for definitive panel separation.
 - **Intentional digital artifacts** — reticle jitter, stepped pulse and mild HUD instability are deliberate aesthetic choices, not defects.
 
